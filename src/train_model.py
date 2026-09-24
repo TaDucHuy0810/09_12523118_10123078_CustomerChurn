@@ -1,428 +1,194 @@
-```python
-import os
-import pandas as pd
+"""Train, evaluate and package the customer churn classifiers."""
+
+from __future__ import annotations
+
+import json
+import sys
+import time
+from datetime import UTC, datetime
+from pathlib import Path
+
 import joblib
-
-from sklearn.model_selection import train_test_split
+import numpy as np
+import pandas as pd
+import sklearn
 from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.dummy import DummyClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
-
-# =========================
-# Models
-# =========================
-
-# 1. KNN
-from sklearn.neighbors import KNeighborsClassifier
-
-# 2. Decision Tree
-from sklearn.tree import DecisionTreeClassifier
-
-# 3. Logistic Regression
 from sklearn.linear_model import LogisticRegression
-
-# 4. Naive Bayes
-from sklearn.naive_bayes import GaussianNB
-
-# =========================
-# Metrics
-# =========================
-
 from sklearn.metrics import (
     accuracy_score,
+    confusion_matrix,
+    f1_score,
     precision_score,
     recall_score,
-    f1_score,
-    classification_report
+    roc_auc_score,
 )
+from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_validate, train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.tree import DecisionTreeClassifier
 
-
-# =========================
-# 1. Load dataset
-# =========================
-
-DATA_PATH = "data/telco_churn.csv"
-
-# Tạo thư mục ai-models nếu chưa có
-os.makedirs("ai-models", exist_ok=True)
-
-df = pd.read_csv(DATA_PATH, sep=";")
-
-print("Dataset shape:", df.shape)
-
-
-# =========================
-# 2. Data preprocessing
-# =========================
-
-# Chuẩn hóa cột Total Charges
-df["Total Charges"] = (
-    df["Total Charges"]
-    .astype(str)
-    .str.strip()
-    .str.replace(",", ".", regex=False)
-)
-
-# Chuyển Total Charges sang kiểu số
-df["Total Charges"] = pd.to_numeric(
-    df["Total Charges"],
-    errors="coerce"
-)
-
-# Xóa các dòng bị thiếu Total Charges
-df = df.dropna(
-    subset=["Total Charges"]
-)
-
-# Xóa các cột không dùng để dự đoán
-columns_to_drop = [
-    "CustomerID",
-    "Count",
-    "Country",
-    "State",
-    "City",
-    "Zip Code",
-    "Lat Long",
-    "Latitude",
-    "Longitude",
-
-    # Data Leakage
-    "Churn Value",
-    "Churn Score",
-    "Churn Reason"
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_PATH = BASE_DIR / "data" / "telco_churn.csv"
+ARTIFACT_DIR = BASE_DIR / "ai-models" / "models"
+LEGACY_DIR = BASE_DIR / "ai-models"
+RANDOM_STATE = 42
+DROP_COLUMNS = [
+    "CustomerID", "Count", "Country", "State", "City", "Zip Code",
+    "Lat Long", "Latitude", "Longitude", "Churn Value", "Churn Score",
+    "Churn Reason",
 ]
 
-df = df.drop(
-    columns=[
-        col
-        for col in columns_to_drop
-        if col in df.columns
-    ]
-)
 
-# Chuyển nhãn Churn Label thành 0 và 1
-df["Churn Label"] = df["Churn Label"].map({
-    "No": 0,
-    "Yes": 1
-})
-
-# Xóa các dòng không chuyển đổi được nhãn
-df = df.dropna(
-    subset=["Churn Label"]
-)
-
-# Tách dữ liệu đầu vào và nhãn
-X = df.drop(
-    columns=["Churn Label"]
-)
-
-y = df["Churn Label"].astype(int)
-
-print("\nData after preprocessing:", df.shape)
-
-print("\nClass distribution:")
-print(y.value_counts())
-
-
-# =========================
-# 3. Split dataset
-# =========================
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.2,
-    random_state=42,
-    stratify=y
-)
-
-print(
-    "\nTraining samples:",
-    len(X_train)
-)
-
-print(
-    "Testing samples:",
-    len(X_test)
-)
-
-
-# =========================
-# 4. Identify columns
-# =========================
-
-numeric_features = X.select_dtypes(
-    include=["number"]
-).columns.tolist()
-
-categorical_features = X.select_dtypes(
-    include=["object", "str"]
-).columns.tolist()
-
-print("\nNumeric features:")
-print(numeric_features)
-
-print("\nCategorical features:")
-print(categorical_features)
-
-
-# =========================
-# 5. Preprocessing pipeline
-# =========================
-
-numeric_transformer = Pipeline(
-    steps=[
-        (
-            "imputer",
-            SimpleImputer(
-                strategy="median"
-            )
-        ),
-        (
-            "scaler",
-            StandardScaler()
-        )
-    ]
-)
-
-
-categorical_transformer = Pipeline(
-    steps=[
-        (
-            "imputer",
-            SimpleImputer(
-                strategy="most_frequent"
-            )
-        ),
-        (
-            "onehot",
-            OneHotEncoder(
-                handle_unknown="ignore",
-                sparse_output=False
-            )
-        )
-    ]
-)
-
-
-preprocessor = ColumnTransformer(
-    transformers=[
-        (
-            "num",
-            numeric_transformer,
-            numeric_features
-        ),
-        (
-            "cat",
-            categorical_transformer,
-            categorical_features
-        )
-    ]
-)
-
-
-# =========================
-# 6. Define 4 models
-# =========================
-
-models = {
-
-    # Giữ nguyên KNN
-    "knn": KNeighborsClassifier(
-        n_neighbors=5
-    ),
-
-    # Giữ nguyên Decision Tree
-    "decision_tree": DecisionTreeClassifier(
-        max_depth=5,
-        random_state=42
-    ),
-
-    # Thêm Logistic Regression
-    "logistic_regression": LogisticRegression(
-        max_iter=1000,
-        random_state=42
-    ),
-
-    # Thêm Naive Bayes
-    "naive_bayes": GaussianNB()
-}
-
-
-# =========================
-# 7. Train and evaluate
-# =========================
-
-results = []
-
-
-for model_name, model in models.items():
-
-    pipeline = Pipeline(
-        steps=[
-            (
-                "preprocessor",
-                preprocessor
-            ),
-            (
-                "model",
-                model
-            )
-        ]
+def load_dataset() -> tuple[pd.DataFrame, pd.Series]:
+    df = pd.read_csv(DATA_PATH, sep=";")
+    df["Total Charges"] = pd.to_numeric(
+        df["Total Charges"].astype(str).str.strip().str.replace(",", ".", regex=False),
+        errors="coerce",
     )
+    df = df.dropna(subset=["Total Charges"])
+    df = df.drop(columns=[column for column in DROP_COLUMNS if column in df.columns])
+    df["Churn Label"] = df["Churn Label"].map({"No": 0, "Yes": 1})
+    df = df.dropna(subset=["Churn Label"])
+    return df.drop(columns=["Churn Label"]), df["Churn Label"].astype(int)
 
-    print(
-        f"\nTraining {model_name}..."
-    )
 
-    # Train model
-    pipeline.fit(
-        X_train,
-        y_train
-    )
+def make_preprocessor(X: pd.DataFrame) -> ColumnTransformer:
+    numeric_features = X.select_dtypes(include=["number"]).columns.tolist()
+    categorical_features = X.select_dtypes(include=["object", "str"]).columns.tolist()
+    numeric_pipeline = Pipeline([
+        ("imputer", SimpleImputer(strategy="median")),
+        ("scaler", StandardScaler()),
+    ])
+    categorical_pipeline = Pipeline([
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("onehot", OneHotEncoder(handle_unknown="ignore")),
+    ])
+    return ColumnTransformer([
+        ("numeric", numeric_pipeline, numeric_features),
+        ("categorical", categorical_pipeline, categorical_features),
+    ])
 
-    # Prediction
-    y_pred = pipeline.predict(
-        X_test
-    )
 
-    # =========================
-    # Metrics
-    # =========================
+def make_pipeline(X: pd.DataFrame, estimator) -> Pipeline:
+    return Pipeline([("preprocessor", make_preprocessor(X)), ("model", estimator)])
 
-    accuracy = accuracy_score(
-        y_test,
-        y_pred
-    )
 
-    precision = precision_score(
-        y_test,
-        y_pred,
-        zero_division=0
-    )
+def build_schema(X: pd.DataFrame, y: pd.Series) -> dict:
+    features = []
+    for column in X.columns:
+        values = X[column].dropna()
+        item = {
+            "name": column,
+            "type": "number" if pd.api.types.is_numeric_dtype(X[column]) else "string",
+            "required": False,
+        }
+        if item["type"] == "number":
+            item["min"] = float(values.min())
+            item["max"] = float(values.max())
+        else:
+            item["values"] = sorted(values.astype(str).unique().tolist())
+        features.append(item)
+    return {
+        "target": {"name": "Churn Label", "type": "integer", "values": {"No": 0, "Yes": 1}},
+        "features": features,
+        "n_samples": int(len(X)),
+        "class_distribution": {str(key): int(value) for key, value in y.value_counts().sort_index().items()},
+    }
 
-    recall = recall_score(
-        y_test,
-        y_pred,
-        zero_division=0
-    )
 
-    f1 = f1_score(
-        y_test,
-        y_pred,
-        zero_division=0
-    )
-
-    # =========================
-    # Print result
-    # =========================
-
-    print(
-        f"\n===== {model_name.upper()} ====="
-    )
-
-    print(
-        f"Accuracy : {accuracy:.4f}"
-    )
-
-    print(
-        f"Precision: {precision:.4f}"
-    )
-
-    print(
-        f"Recall   : {recall:.4f}"
-    )
-
-    print(
-        f"F1-score : {f1:.4f}"
-    )
-
-    print(
-        "\nClassification Report:"
-    )
-
-    print(
-        classification_report(
-            y_test,
-            y_pred,
-            target_names=[
-                "No Churn",
-                "Churn"
-            ],
-            zero_division=0
-        )
-    )
-
-    # =========================
-    # Save results
-    # =========================
-
-    results.append({
-        "Model": model_name,
-        "Accuracy": accuracy,
-        "Precision": precision,
-        "Recall": recall,
-        "F1-score": f1
-    })
-
-    # =========================
-    # Save model
-    # =========================
-
-    model_path = (
-        f"ai-models/{model_name}_model.pkl"
-    )
-
-    joblib.dump(
+def evaluate(name: str, pipeline: Pipeline, X_train, X_test, y_train, y_test, cv) -> dict:
+    started = time.perf_counter()
+    pipeline.fit(X_train, y_train)
+    train_seconds = time.perf_counter() - started
+    prediction_started = time.perf_counter()
+    predictions = pipeline.predict(X_test)
+    prediction_seconds = time.perf_counter() - prediction_started
+    probabilities = pipeline.predict_proba(X_test)[:, 1] if hasattr(pipeline, "predict_proba") else None
+    scores = cross_validate(
         pipeline,
-        model_path
+        X_train,
+        y_train,
+        cv=cv,
+        scoring={"accuracy": "accuracy", "precision": "precision", "recall": "recall", "f1": "f1"},
+        n_jobs=-1,
     )
+    return {
+        "Model": name,
+        "Accuracy": accuracy_score(y_test, predictions),
+        "Precision": precision_score(y_test, predictions, zero_division=0),
+        "Recall": recall_score(y_test, predictions, zero_division=0),
+        "F1-score": f1_score(y_test, predictions, zero_division=0),
+        "ROC-AUC": roc_auc_score(y_test, probabilities) if probabilities is not None else None,
+        "CV Accuracy Mean": scores["test_accuracy"].mean(),
+        "CV Accuracy Std": scores["test_accuracy"].std(),
+        "CV F1 Mean": scores["test_f1"].mean(),
+        "CV F1 Std": scores["test_f1"].std(),
+        "Train Seconds": train_seconds,
+        "Predict Seconds": prediction_seconds,
+        "Confusion Matrix": confusion_matrix(y_test, predictions).tolist(),
+    }
 
-    print(
-        f"Saved model to: {model_path}"
+
+def main() -> None:
+    X, y = load_dataset()
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y,
     )
-
-
-# =========================
-# 8. Save comparison results
-# =========================
-
-results_df = pd.DataFrame(
-    results
-)
-
-print(
-    "\n===== MODEL COMPARISON ====="
-)
-
-print(
-    results_df.to_string(
-        index=False
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    candidate_models = {
+        "dummy_baseline": DummyClassifier(strategy="most_frequent"),
+        "logistic_regression": LogisticRegression(max_iter=2000, class_weight="balanced", random_state=RANDOM_STATE),
+        "knn": KNeighborsClassifier(n_neighbors=5),
+        "decision_tree": DecisionTreeClassifier(max_depth=5, random_state=RANDOM_STATE, class_weight="balanced"),
+        "random_forest": RandomForestClassifier(n_estimators=200, max_depth=10, random_state=RANDOM_STATE, n_jobs=-1, class_weight="balanced"),
+    }
+    tuned_logistic = GridSearchCV(
+        make_pipeline(X, candidate_models["logistic_regression"]),
+        {"model__C": [0.1, 1.0, 10.0]}, cv=cv, scoring="f1", n_jobs=-1,
     )
-)
+    tuned_logistic.fit(X_train, y_train)
+    candidate_models["logistic_regression"] = tuned_logistic.best_estimator_.named_steps["model"]
+
+    results = []
+    fitted_models = {}
+    for name, estimator in candidate_models.items():
+        pipeline = make_pipeline(X, estimator)
+        result = evaluate(name, pipeline, X_train, X_test, y_train, y_test, cv)
+        fitted_models[name] = pipeline
+        results.append(result)
+        print(f"{name}: F1={result['F1-score']:.4f}, CV F1={result['CV F1 Mean']:.4f}")
+
+    results_df = pd.DataFrame(results)
+    LEGACY_DIR.mkdir(parents=True, exist_ok=True)
+    results_df.to_csv(LEGACY_DIR / "model_comparison.csv", index=False)
+    ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+    best_name = results_df.sort_values(["F1-score", "Recall"], ascending=False).iloc[0]["Model"]
+    best_pipeline = fitted_models[best_name]
+    joblib.dump(best_pipeline, ARTIFACT_DIR / "model.joblib", compress=3)
+    joblib.dump(best_pipeline, LEGACY_DIR / f"{best_name}_model.pkl", compress=3)
+
+    (ARTIFACT_DIR / "schema.json").write_text(json.dumps(build_schema(X, y), indent=2), encoding="utf-8")
+    best_result = next(item for item in results if item["Model"] == best_name)
+    metadata = {
+        "model_name": best_name,
+        "model_version": "1.0.0",
+        "trained_at": datetime.now(UTC).isoformat(),
+        "target": "Churn Label",
+        "split": {"test_size": 0.2, "random_state": RANDOM_STATE, "stratified": True},
+        "cross_validation": {"folds": 5, "strategy": "StratifiedKFold", "scoring": "f1"},
+        "best_params": tuned_logistic.best_params_,
+        "metrics": {key: value for key, value in best_result.items() if key != "Confusion Matrix"},
+        "library_versions": {"python": sys.version.split()[0], "scikit_learn": sklearn.__version__, "numpy": np.__version__, "pandas": pd.__version__},
+        "artifact": "ai-models/models/model.joblib",
+    }
+    (ARTIFACT_DIR / "metadata.json").write_text(json.dumps(metadata, indent=2, default=float), encoding="utf-8")
+    print(f"Best model: {best_name}")
+    print(f"Artifacts: {ARTIFACT_DIR}")
 
 
-results_df.to_csv(
-    "ai-models/model_comparison.csv",
-    index=False
-)
-
-
-print(
-    "\nSaved comparison to:"
-)
-
-print(
-    "ai-models/model_comparison.csv"
-)
-
-
-# =========================
-# 9. Finished
-# =========================
-
-print(
-    "\nTraining completed successfully."
-)
-```
+if __name__ == "__main__":
+    main()
