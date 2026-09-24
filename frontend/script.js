@@ -5,17 +5,19 @@ document
 
     const result = document.getElementById("result");
 
-    const data = {
-      Tenure_Months: Number(document.getElementById("tenure").value),
-      Monthly_Charges: Number(document.getElementById("monthly").value),
-      Total_Charges: Number(document.getElementById("total").value),
-      Contract: document.getElementById("contract").value,
-    };
+      const data = {
+        features: {
+          "Tenure Months": Number(document.getElementById("tenure").value),
+          "Monthly Charges": Number(document.getElementById("monthly").value),
+          "Total Charges": Number(document.getElementById("total").value),
+          Contract: document.getElementById("contract").value,
+        },
+      };
 
     result.textContent = "Đang dự đoán...";
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/predict", {
+      const response = await fetch("/api/predict", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -29,10 +31,7 @@ document
         throw new Error(output.detail || "Có lỗi xảy ra");
       }
 
-      result.innerHTML = `
-                <p>KNN: ${output.prediction.knn_result}</p>
-                <p>Decision Tree: ${output.prediction.decision_tree_result}</p>
-            `;
+        result.innerHTML = `<p>${output.label}</p><p>Khả năng rời mạng: ${(output.probability * 100).toFixed(1)}%</p>`;
     } catch (error) {
       result.textContent = "Lỗi: " + error.message;
     }

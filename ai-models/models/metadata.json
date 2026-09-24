@@ -1,0 +1,40 @@
+{
+  "model_name": "logistic_regression",
+  "model_version": "1.0.0",
+  "trained_at": "2026-09-24T16:01:07.622467+00:00",
+  "target": "Churn Label",
+  "split": {
+    "test_size": 0.2,
+    "random_state": 42,
+    "stratified": true
+  },
+  "cross_validation": {
+    "folds": 5,
+    "strategy": "StratifiedKFold",
+    "scoring": "f1"
+  },
+  "best_params": {
+    "model__C": 0.1
+  },
+  "metrics": {
+    "Model": "logistic_regression",
+    "Accuracy": 0.736318407960199,
+    "Precision": 0.5025728987993139,
+    "Recall": 0.7834224598930482,
+    "F1-score": 0.6123301985370951,
+    "ROC-AUC": 0.8427999026769029,
+    "CV Accuracy Mean": 0.7646222222222222,
+    "CV Accuracy Std": 0.015654542195734263,
+    "CV F1 Mean": 0.6458086650893969,
+    "CV F1 Std": 0.018750528898027946,
+    "Train Seconds": 0.10313450000012381,
+    "Predict Seconds": 0.01166560000001482
+  },
+  "library_versions": {
+    "python": "3.14.7",
+    "scikit_learn": "1.9.1",
+    "numpy": "2.5.3",
+    "pandas": "3.0.6"
+  },
+  "artifact": "ai-models/models/model.joblib"
+}

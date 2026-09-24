@@ -1,0 +1,48 @@
+services:
+  ai-service:
+    build:
+      context: .
+      dockerfile: ai-models/Dockerfile
+    ports:
+      - "${AI_SERVICE_PORT:-8001}:8001"
+    environment:
+      MODEL_PATH: /app/ai-models/models/model.joblib
+      METADATA_PATH: /app/ai-models/models/metadata.json
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: app/backend/Dockerfile
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai-service:8001}
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017}
+      MONGODB_DATABASE: ${MONGODB_DATABASE:-customer_churn}
+    depends_on:
+      ai-service:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+
+  frontend:
+    build:
+      context: .
+      dockerfile: app/frontend/Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:
