@@ -1,3 +1,5 @@
+```python
+import os
 import pandas as pd
 import joblib
 
@@ -6,8 +8,27 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
+
+# =========================
+# Models
+# =========================
+
+# 1. KNN
 from sklearn.neighbors import KNeighborsClassifier
+
+# 2. Decision Tree
 from sklearn.tree import DecisionTreeClassifier
+
+# 3. Logistic Regression
+from sklearn.linear_model import LogisticRegression
+
+# 4. Naive Bayes
+from sklearn.naive_bayes import GaussianNB
+
+# =========================
+# Metrics
+# =========================
+
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -22,6 +43,9 @@ from sklearn.metrics import (
 # =========================
 
 DATA_PATH = "data/telco_churn.csv"
+
+# Tạo thư mục ai-models nếu chưa có
+os.makedirs("ai-models", exist_ok=True)
 
 df = pd.read_csv(DATA_PATH, sep=";")
 
@@ -46,12 +70,12 @@ df["Total Charges"] = pd.to_numeric(
     errors="coerce"
 )
 
-# Chỉ xóa các dòng bị thiếu Total Charges
-df = df.dropna(subset=["Total Charges"])
+# Xóa các dòng bị thiếu Total Charges
+df = df.dropna(
+    subset=["Total Charges"]
+)
 
 # Xóa các cột không dùng để dự đoán
-# Các cột Churn Value, Churn Score và Churn Reason
-# có thể gây data leakage
 columns_to_drop = [
     "CustomerID",
     "Count",
@@ -62,6 +86,8 @@ columns_to_drop = [
     "Lat Long",
     "Latitude",
     "Longitude",
+
+    # Data Leakage
     "Churn Value",
     "Churn Score",
     "Churn Reason"
@@ -69,7 +95,8 @@ columns_to_drop = [
 
 df = df.drop(
     columns=[
-        col for col in columns_to_drop
+        col
+        for col in columns_to_drop
         if col in df.columns
     ]
 )
@@ -81,10 +108,15 @@ df["Churn Label"] = df["Churn Label"].map({
 })
 
 # Xóa các dòng không chuyển đổi được nhãn
-df = df.dropna(subset=["Churn Label"])
+df = df.dropna(
+    subset=["Churn Label"]
+)
 
 # Tách dữ liệu đầu vào và nhãn
-X = df.drop(columns=["Churn Label"])
+X = df.drop(
+    columns=["Churn Label"]
+)
+
 y = df["Churn Label"].astype(int)
 
 print("\nData after preprocessing:", df.shape)
@@ -105,8 +137,15 @@ X_train, X_test, y_train, y_test = train_test_split(
     stratify=y
 )
 
-print("\nTraining samples:", len(X_train))
-print("Testing samples:", len(X_test))
+print(
+    "\nTraining samples:",
+    len(X_train)
+)
+
+print(
+    "Testing samples:",
+    len(X_test)
+)
 
 
 # =========================
@@ -121,6 +160,12 @@ categorical_features = X.select_dtypes(
     include=["object", "str"]
 ).columns.tolist()
 
+print("\nNumeric features:")
+print(numeric_features)
+
+print("\nCategorical features:")
+print(categorical_features)
+
 
 # =========================
 # 5. Preprocessing pipeline
@@ -130,7 +175,9 @@ numeric_transformer = Pipeline(
     steps=[
         (
             "imputer",
-            SimpleImputer(strategy="median")
+            SimpleImputer(
+                strategy="median"
+            )
         ),
         (
             "scaler",
@@ -139,20 +186,25 @@ numeric_transformer = Pipeline(
     ]
 )
 
+
 categorical_transformer = Pipeline(
     steps=[
         (
             "imputer",
-            SimpleImputer(strategy="most_frequent")
+            SimpleImputer(
+                strategy="most_frequent"
+            )
         ),
         (
             "onehot",
             OneHotEncoder(
-                handle_unknown="ignore"
+                handle_unknown="ignore",
+                sparse_output=False
             )
         )
     ]
 )
+
 
 preprocessor = ColumnTransformer(
     transformers=[
@@ -171,18 +223,30 @@ preprocessor = ColumnTransformer(
 
 
 # =========================
-# 6. Define 2 models
+# 6. Define 4 models
 # =========================
 
 models = {
+
+    # Giữ nguyên KNN
     "knn": KNeighborsClassifier(
         n_neighbors=5
     ),
 
+    # Giữ nguyên Decision Tree
     "decision_tree": DecisionTreeClassifier(
         max_depth=5,
         random_state=42
-    )
+    ),
+
+    # Thêm Logistic Regression
+    "logistic_regression": LogisticRegression(
+        max_iter=1000,
+        random_state=42
+    ),
+
+    # Thêm Naive Bayes
+    "naive_bayes": GaussianNB()
 }
 
 
@@ -191,6 +255,7 @@ models = {
 # =========================
 
 results = []
+
 
 for model_name, model in models.items():
 
@@ -207,11 +272,24 @@ for model_name, model in models.items():
         ]
     )
 
-    print(f"\nTraining {model_name}...")
+    print(
+        f"\nTraining {model_name}..."
+    )
 
-    pipeline.fit(X_train, y_train)
+    # Train model
+    pipeline.fit(
+        X_train,
+        y_train
+    )
 
-    y_pred = pipeline.predict(X_test)
+    # Prediction
+    y_pred = pipeline.predict(
+        X_test
+    )
+
+    # =========================
+    # Metrics
+    # =========================
 
     accuracy = accuracy_score(
         y_test,
@@ -236,21 +314,49 @@ for model_name, model in models.items():
         zero_division=0
     )
 
-    print(f"\n===== {model_name.upper()} =====")
-    print(f"Accuracy : {accuracy:.4f}")
-    print(f"Precision: {precision:.4f}")
-    print(f"Recall   : {recall:.4f}")
-    print(f"F1-score : {f1:.4f}")
+    # =========================
+    # Print result
+    # =========================
 
-    print("\nClassification Report:")
+    print(
+        f"\n===== {model_name.upper()} ====="
+    )
+
+    print(
+        f"Accuracy : {accuracy:.4f}"
+    )
+
+    print(
+        f"Precision: {precision:.4f}"
+    )
+
+    print(
+        f"Recall   : {recall:.4f}"
+    )
+
+    print(
+        f"F1-score : {f1:.4f}"
+    )
+
+    print(
+        "\nClassification Report:"
+    )
 
     print(
         classification_report(
             y_test,
             y_pred,
+            target_names=[
+                "No Churn",
+                "Churn"
+            ],
             zero_division=0
         )
     )
+
+    # =========================
+    # Save results
+    # =========================
 
     results.append({
         "Model": model_name,
@@ -260,7 +366,10 @@ for model_name, model in models.items():
         "F1-score": f1
     })
 
-    # Lưu model
+    # =========================
+    # Save model
+    # =========================
+
     model_path = (
         f"ai-models/{model_name}_model.pkl"
     )
@@ -279,14 +388,41 @@ for model_name, model in models.items():
 # 8. Save comparison results
 # =========================
 
-results_df = pd.DataFrame(results)
+results_df = pd.DataFrame(
+    results
+)
 
-print("\n===== MODEL COMPARISON =====")
-print(results_df)
+print(
+    "\n===== MODEL COMPARISON ====="
+)
+
+print(
+    results_df.to_string(
+        index=False
+    )
+)
+
 
 results_df.to_csv(
     "ai-models/model_comparison.csv",
     index=False
 )
 
-print("\nTraining completed successfully.")
+
+print(
+    "\nSaved comparison to:"
+)
+
+print(
+    "ai-models/model_comparison.csv"
+)
+
+
+# =========================
+# 9. Finished
+# =========================
+
+print(
+    "\nTraining completed successfully."
+)
+```
