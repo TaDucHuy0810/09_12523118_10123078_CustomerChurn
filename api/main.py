@@ -1,6 +1,7 @@
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 
 from api.predictor import predict_customer
@@ -10,6 +11,15 @@ app = FastAPI(
     title="Customer Churn Prediction API",
     description="API dự đoán khách hàng có khả năng rời bỏ nhà mạng",
     version="1.0.0"
+)
+
+# Cho phép frontend gọi API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
