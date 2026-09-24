@@ -1,22 +1,22 @@
-# \# 09\_12523118\_10123078\_CustomerChurn
+# \# 09_12523118_10123078_CustomerChurn
 
-# 
+#
 
 # \## Dự đoán khách hàng rời bỏ nhà mạng bằng Machine Learning – Classification
 
-# 
+#
 
 # \## 1. Giới thiệu đề tài
 
-# 
+#
 
 # Trong lĩnh vực viễn thông, việc khách hàng rời bỏ nhà mạng gây ảnh hưởng đến doanh thu và hoạt động kinh doanh.
 
-# 
+#
 
 # Đề tài này xây dựng mô hình Machine Learning nhằm dự đoán khả năng khách hàng rời bỏ nhà mạng dựa trên các thông tin như:
 
-# 
+#
 
 # \- Giới tính
 
@@ -32,19 +32,19 @@
 
 # \- Các dịch vụ Internet và hỗ trợ
 
-# 
+#
 
 # Bài toán thuộc dạng \*\*Classification\*\*, trong đó mô hình dự đoán khách hàng có rời bỏ nhà mạng hay không.
 
-# 
+#
 
 # \---
 
-# 
+#
 
 # \## 2. Mục tiêu đề tài
 
-# 
+#
 
 # \- Phân tích dữ liệu khách hàng viễn thông.
 
@@ -58,23 +58,23 @@
 
 # \- Dự đoán khả năng rời bỏ của khách hàng mới.
 
-# 
+#
 
 # \---
 
-# 
+#
 
 # \## 3. Dataset
 
-# 
+#
 
 # Dataset sử dụng là bộ dữ liệu Telco Customer Churn.
 
-# 
+#
 
 # Thông tin chính:
 
-# 
+#
 
 # \- Số dòng ban đầu: 7043
 
@@ -82,11 +82,11 @@
 
 # \- Biến mục tiêu: `Churn Label`
 
-# 
+#
 
 # Quy ước nhãn:
 
-# 
+#
 
 # | Giá trị | Ý nghĩa |
 
@@ -96,27 +96,27 @@
 
 # | 1 | Khách hàng rời bỏ |
 
-# 
+#
 
 # Dữ liệu được lưu tại:
 
-# 
+#
 
 # ```text
 
-# data/telco\_churn.csv
+# data/telco_churn.csv
 
 # ```
 
-# 
+#
 
 # \---
 
-# 
+#
 
 # \## 4. Công nghệ sử dụng
 
-# 
+#
 
 # \- Python
 
@@ -132,27 +132,27 @@
 
 # \- Git và GitHub
 
-# 
+#
 
 # \---
 
-# 
+#
 
 # \## 5. Quy trình thực hiện
 
-# 
+#
 
 # \### Bước 1: Thu thập dữ liệu
 
-# 
+#
 
 # Sử dụng dataset Telco Customer Churn.
 
-# 
+#
 
 # \### Bước 2: Tiền xử lý dữ liệu
 
-# 
+#
 
 # \- Đọc dữ liệu CSV với dấu phân cách `;`.
 
@@ -174,59 +174,59 @@
 
 # \- Xử lý dữ liệu thiếu bằng SimpleImputer.
 
-# 
+#
 
 # \### Bước 3: Chia dữ liệu
 
-# 
+#
 
 # Dữ liệu được chia thành:
 
-# 
+#
 
 # \- 80% dữ liệu huấn luyện.
 
 # \- 20% dữ liệu kiểm tra.
 
-# 
+#
 
 # Thông số sử dụng:
 
-# 
+#
 
 # ```python
 
-# test\_size=0.2
+# test_size=0.2
 
-# random\_state=42
+# random_state=42
 
 # stratify=y
 
 # ```
 
-# 
+#
 
 # \### Bước 4: Huấn luyện mô hình
 
-# 
+#
 
 # Hai mô hình được triển khai:
 
-# 
+#
 
 # 1\. K-Nearest Neighbors
 
 # 2\. Decision Tree
 
-# 
+#
 
 # \### Bước 5: Đánh giá mô hình
 
-# 
+#
 
 # Sử dụng các metrics:
 
-# 
+#
 
 # \- Accuracy
 
@@ -238,73 +238,73 @@
 
 # \- Confusion Matrix
 
-# 
+#
 
 # \---
 
-# 
+#
 
 # \## 6. Các mô hình Machine Learning
 
-# 
+#
 
 # \### 6.1. K-Nearest Neighbors
 
-# 
+#
 
 # KNN dự đoán nhãn của một khách hàng bằng cách tìm các khách hàng gần nhất trong dữ liệu huấn luyện.
 
-# 
+#
 
 # Trong đề tài này, mô hình sử dụng:
 
-# 
+#
 
 # ```python
 
-# KNeighborsClassifier(n\_neighbors=5)
+# KNeighborsClassifier(n_neighbors=5)
 
 # ```
 
-# 
+#
 
 # \### 6.2. Decision Tree
 
-# 
+#
 
 # Decision Tree sử dụng cấu trúc cây quyết định để phân loại khách hàng dựa trên các điều kiện của dữ liệu.
 
-# 
+#
 
 # Trong đề tài này, mô hình sử dụng:
 
-# 
+#
 
 # ```python
 
 # DecisionTreeClassifier(
 
-# &#x20;   max\_depth=5,
+# &#x20; max_depth=5,
 
-# &#x20;   random\_state=42
+# &#x20; random_state=42
 
 # )
 
 # ```
 
-# 
+#
 
 # \---
 
-# 
+#
 
 # \## 7. Kết quả thực nghiệm
 
-# 
+#
 
 # Kết quả đánh giá hai mô hình:
 
-# 
+#
 
 # | Model | Accuracy | Precision | Recall | F1-score |
 
@@ -314,11 +314,11 @@
 
 # | Decision Tree | 77.90% | 57.02% | 68.45% | 62.21% |
 
-# 
+#
 
 # \### Nhận xét
 
-# 
+#
 
 # \- Decision Tree đạt Accuracy cao hơn KNN.
 
@@ -328,83 +328,83 @@
 
 # \- Đối với bài toán Customer Churn, Recall là chỉ số đáng chú ý vì việc bỏ sót khách hàng có nguy cơ rời bỏ có thể gây ảnh hưởng đến doanh nghiệp.
 
-# 
+#
 
 # Lưu ý: Kết quả trên được đánh giá trên tập dữ liệu kiểm tra và không đảm bảo dự đoán chính xác tuyệt đối cho mọi khách hàng thực tế.
 
-# 
+#
 
 # \---
 
-# 
+#
 
 # \## 8. Cấu trúc thư mục
 
-# 
+#
 
 # ```text
 
-# 09\_12523118\_10123078\_CustomerChurn
+# 09_12523118_10123078_CustomerChurn
 
 # │
 
 # ├── ai-models
 
-# │   ├── decision\_tree\_model.pkl
+# │ ├── decision_tree_model.pkl
 
-# │   ├── knn\_model.pkl
+# │ ├── knn_model.pkl
 
-# │   ├── model\_comparison.csv
+# │ ├── model_comparison.csv
 
-# │   └── telco\_churn\_logistic\_model.pkl
+# │ └── telco_churn_logistic_model.pkl
 
 # │
 
 # ├── data
 
-# │   └── telco\_churn.csv
+# │ └── telco_churn.csv
 
 # │
 
 # ├── docs
 
-# │   ├── baocao.docx
+# │ ├── baocao.docx
 
-# │   └── figures
+# │ └── figures
 
-# │       ├── accuracy.png
+# │ ├── accuracy.png
 
-# │       ├── precision.png
+# │ ├── precision.png
 
-# │       ├── recall.png
+# │ ├── recall.png
 
-# │       ├── f1\_score.png
+# │ ├── f1_score.png
 
-# │       ├── confusion\_matrix\_knn.png
+# │ ├── confusion_matrix_knn.png
 
-# │       └── confusion\_matrix\_decision\_tree.png
+# │ └── confusion_matrix_decision_tree.png
 
 # │
 
 # ├── notebooks
 
-# │   └── eda.py
+# │ └── eda.py
 
 # │
 
 # ├── src
 
-# │   ├── confusion\_matrix.py
+# │ ├── confusion_matrix.py
 
-# │   ├── data\_preprocessing.py
+# │ ├── data_preprocessing.py
 
-# │   ├── evaluate\_models.py
+# │ ├── evaluate_models.py
 
-# │   ├── predict.py
+# │ ├── predict.py
 
-# │   ├── show\_results.py
+# │ ├── show_results.py
 
-# │   └── train\_model.py
+# │ └── train_model.py
 
 # │
 
@@ -416,19 +416,19 @@
 
 # ```
 
-# 
+#
 
 # \---
 
-# 
+#
 
 # \## 9. Cách cài đặt
 
-# 
+#
 
 # Clone repository:
 
-# 
+#
 
 # ```bash
 
@@ -436,23 +436,23 @@
 
 # ```
 
-# 
+#
 
 # Di chuyển vào thư mục project:
 
-# 
+#
 
 # ```bash
 
-# cd 09\_12523118\_10123078\_CustomerChurn
+# cd 09_12523118_10123078_CustomerChurn
 
 # ```
 
-# 
+#
 
 # Cài đặt thư viện:
 
-# 
+#
 
 # ```bash
 
@@ -460,67 +460,67 @@
 
 # ```
 
-# 
+#
 
 # \---
 
-# 
+#
 
 # \## 10. Cách chạy project
 
-# 
+#
 
 # \### Huấn luyện mô hình
 
-# 
+#
 
 # ```bash
 
-# python src/train\_model.py
+# python src/train_model.py
 
 # ```
 
-# 
+#
 
 # \### Tạo biểu đồ đánh giá
 
-# 
+#
 
 # ```bash
 
-# python src/evaluate\_models.py
+# python src/evaluate_models.py
 
 # ```
 
-# 
+#
 
 # \### Tạo Confusion Matrix
 
-# 
+#
 
 # ```bash
 
-# python src/confusion\_matrix.py
+# python src/confusion_matrix.py
 
 # ```
 
-# 
+#
 
 # \### Hiển thị bảng kết quả
 
-# 
+#
 
 # ```bash
 
-# python src/show\_results.py
+# python src/show_results.py
 
 # ```
 
-# 
+#
 
 # \### Dự đoán khách hàng thử nghiệm
 
-# 
+#
 
 # ```bash
 
@@ -528,19 +528,19 @@
 
 # ```
 
-# 
+#
 
 # \---
 
-# 
+#
 
 # \## 11. Kết quả đầu ra
 
-# 
+#
 
 # Các model được lưu tại:
 
-# 
+#
 
 # ```text
 
@@ -548,11 +548,11 @@
 
 # ```
 
-# 
+#
 
 # Các biểu đồ đánh giá được lưu tại:
 
-# 
+#
 
 # ```text
 
@@ -560,23 +560,23 @@
 
 # ```
 
-# 
+#
 
 # Các file model có thể được sử dụng để dự đoán dữ liệu khách hàng mới mà không cần huấn luyện lại từ đầu.
 
-# 
+#
 
 # \---
 
-# 
+#
 
 # \## 12. Hướng phát triển
 
-# 
+#
 
 # Trong tương lai, đề tài có thể được phát triển thêm:
 
-# 
+#
 
 # \- Bổ sung Logistic Regression và Random Forest.
 
@@ -590,3 +590,28 @@
 
 # \- Triển khai mô hình lên môi trường thực tế.
 
+## Kết quả trực quan
+
+### So sánh Accuracy
+
+![Accuracy](docs/figures/accuracy.png)
+
+### So sánh Precision
+
+![Precision](docs/figures/precision.png)
+
+### So sánh Recall
+
+![Recall](docs/figures/recall.png)
+
+### So sánh F1-score
+
+![F1-score](docs/figures/f1_score.png)
+
+### Confusion Matrix của KNN
+
+![Confusion Matrix KNN](docs/figures/confusion_matrix_knn.png)
+
+### Confusion Matrix của Decision Tree
+
+![Confusion Matrix Decision Tree](docs/figures/confusion_matrix_decision_tree.png)
