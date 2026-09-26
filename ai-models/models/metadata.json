@@ -1,7 +1,7 @@
 {
   "model_name": "logistic_regression",
   "model_version": "1.0.0",
-  "trained_at": "2026-09-24T16:01:07.622467+00:00",
+  "trained_at": "2026-09-26T09:41:26.679417+00:00",
   "target": "Churn Label",
   "split": {
     "test_size": 0.2,
@@ -14,21 +14,21 @@
     "scoring": "f1"
   },
   "best_params": {
-    "model__C": 0.1
+    "model__C": 1.0
   },
   "metrics": {
     "Model": "logistic_regression",
-    "Accuracy": 0.736318407960199,
-    "Precision": 0.5025728987993139,
-    "Recall": 0.7834224598930482,
-    "F1-score": 0.6123301985370951,
-    "ROC-AUC": 0.8427999026769029,
-    "CV Accuracy Mean": 0.7646222222222222,
-    "CV Accuracy Std": 0.015654542195734263,
-    "CV F1 Mean": 0.6458086650893969,
-    "CV F1 Std": 0.018750528898027946,
-    "Train Seconds": 0.10313450000012381,
-    "Predict Seconds": 0.01166560000001482
+    "Accuracy": 0.7306325515280739,
+    "Precision": 0.4957983193277311,
+    "Recall": 0.7887700534759359,
+    "F1-score": 0.608875128998968,
+    "ROC-AUC": 0.8428154329583633,
+    "CV Accuracy Mean": 0.7617777777777778,
+    "CV Accuracy Std": 0.011507592769907385,
+    "CV F1 Mean": 0.6451693392950906,
+    "CV F1 Std": 0.015035906521929276,
+    "Train Seconds": 0.11764529999345541,
+    "Predict Seconds": 0.013120799994794652
   },
   "library_versions": {
     "python": "3.14.7",

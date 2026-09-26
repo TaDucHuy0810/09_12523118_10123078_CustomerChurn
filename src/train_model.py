@@ -14,7 +14,6 @@ import pandas as pd
 import sklearn
 from sklearn.compose import ColumnTransformer
 from sklearn.dummy import DummyClassifier
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
@@ -26,6 +25,7 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_validate, train_test_split
+from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -45,18 +45,19 @@ DROP_COLUMNS = [
 
 def load_dataset() -> tuple[pd.DataFrame, pd.Series]:
     df = pd.read_csv(DATA_PATH, sep=";")
-    df["Total Charges"] = pd.to_numeric(
-        df["Total Charges"].astype(str).str.strip().str.replace(",", ".", regex=False),
-        errors="coerce",
-    )
-    df = df.dropna(subset=["Total Charges"])
+    for column in ("Monthly Charges", "Total Charges"):
+        df[column] = pd.to_numeric(
+            df[column].astype(str).str.strip().str.replace(",", ".", regex=False),
+            errors="coerce",
+        )
+    df = df.dropna(subset=["Monthly Charges", "Total Charges"])
     df = df.drop(columns=[column for column in DROP_COLUMNS if column in df.columns])
     df["Churn Label"] = df["Churn Label"].map({"No": 0, "Yes": 1})
     df = df.dropna(subset=["Churn Label"])
     return df.drop(columns=["Churn Label"]), df["Churn Label"].astype(int)
 
 
-def make_preprocessor(X: pd.DataFrame) -> ColumnTransformer:
+def make_preprocessor(X: pd.DataFrame, *, dense_output: bool = False) -> ColumnTransformer:
     numeric_features = X.select_dtypes(include=["number"]).columns.tolist()
     categorical_features = X.select_dtypes(include=["object", "str"]).columns.tolist()
     numeric_pipeline = Pipeline([
@@ -65,7 +66,7 @@ def make_preprocessor(X: pd.DataFrame) -> ColumnTransformer:
     ])
     categorical_pipeline = Pipeline([
         ("imputer", SimpleImputer(strategy="most_frequent")),
-        ("onehot", OneHotEncoder(handle_unknown="ignore")),
+        ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=not dense_output)),
     ])
     return ColumnTransformer([
         ("numeric", numeric_pipeline, numeric_features),
@@ -73,8 +74,11 @@ def make_preprocessor(X: pd.DataFrame) -> ColumnTransformer:
     ])
 
 
-def make_pipeline(X: pd.DataFrame, estimator) -> Pipeline:
-    return Pipeline([("preprocessor", make_preprocessor(X)), ("model", estimator)])
+def make_pipeline(X: pd.DataFrame, estimator, *, dense_output: bool = False) -> Pipeline:
+    return Pipeline([
+        ("preprocessor", make_preprocessor(X, dense_output=dense_output)),
+        ("model", estimator),
+    ])
 
 
 def build_schema(X: pd.DataFrame, y: pd.Series) -> dict:
@@ -84,7 +88,7 @@ def build_schema(X: pd.DataFrame, y: pd.Series) -> dict:
         item = {
             "name": column,
             "type": "number" if pd.api.types.is_numeric_dtype(X[column]) else "string",
-            "required": False,
+            "required": True,
         }
         if item["type"] == "number":
             item["min"] = float(values.min())
@@ -144,7 +148,7 @@ def main() -> None:
         "logistic_regression": LogisticRegression(max_iter=2000, class_weight="balanced", random_state=RANDOM_STATE),
         "knn": KNeighborsClassifier(n_neighbors=5),
         "decision_tree": DecisionTreeClassifier(max_depth=5, random_state=RANDOM_STATE, class_weight="balanced"),
-        "random_forest": RandomForestClassifier(n_estimators=200, max_depth=10, random_state=RANDOM_STATE, n_jobs=-1, class_weight="balanced"),
+        "naive_bayes": GaussianNB(),
     }
     tuned_logistic = GridSearchCV(
         make_pipeline(X, candidate_models["logistic_regression"]),
@@ -156,7 +160,7 @@ def main() -> None:
     results = []
     fitted_models = {}
     for name, estimator in candidate_models.items():
-        pipeline = make_pipeline(X, estimator)
+        pipeline = make_pipeline(X, estimator, dense_output=name == "naive_bayes")
         result = evaluate(name, pipeline, X_train, X_test, y_train, y_test, cv)
         fitted_models[name] = pipeline
         results.append(result)
@@ -166,7 +170,9 @@ def main() -> None:
     LEGACY_DIR.mkdir(parents=True, exist_ok=True)
     results_df.to_csv(LEGACY_DIR / "model_comparison.csv", index=False)
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
-    best_name = results_df.sort_values(["F1-score", "Recall"], ascending=False).iloc[0]["Model"]
+    best_name = results_df.sort_values(
+        ["CV F1 Mean", "CV Accuracy Mean"], ascending=False,
+    ).iloc[0]["Model"]
     best_pipeline = fitted_models[best_name]
     joblib.dump(best_pipeline, ARTIFACT_DIR / "model.joblib", compress=3)
     joblib.dump(best_pipeline, LEGACY_DIR / f"{best_name}_model.pkl", compress=3)

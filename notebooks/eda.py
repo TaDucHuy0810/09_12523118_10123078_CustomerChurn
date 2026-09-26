@@ -14,6 +14,11 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Đọc dữ liệu
 df = pd.read_csv(DATA_PATH, sep=";")
+for column in ("Monthly Charges", "Total Charges"):
+    df[column] = pd.to_numeric(
+        df[column].astype(str).str.strip().str.replace(",", ".", regex=False),
+        errors="coerce",
+    )
 
 # Cấu hình hiển thị
 sns.set_theme(style="whitegrid")

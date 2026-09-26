@@ -6,10 +6,18 @@ services:
     ports:
       - "${AI_SERVICE_PORT:-8001}:8001"
     environment:
+      PORT: "8001"
       MODEL_PATH: /app/ai-models/models/model.joblib
       METADATA_PATH: /app/ai-models/models/metadata.json
+      SCHEMA_PATH: /app/ai-models/models/schema.json
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')",
+        ]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -21,14 +29,27 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
+      PORT: "8000"
       AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai-service:8001}
       MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017}
       MONGODB_DATABASE: ${MONGODB_DATABASE:-customer_churn}
+      SCHEMA_PATH: /app/model_artifacts/schema.json
     depends_on:
       ai-service:
         condition: service_healthy
       mongo:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import json,urllib.request; assert json.load(urllib.request.urlopen('http://localhost:8000/health'))['status']=='healthy'",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   frontend:
     build:
@@ -38,11 +59,22 @@ services:
       - "${FRONTEND_PORT:-3000}:80"
     depends_on:
       - backend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   mongo:
     image: mongo:7
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test:
+        ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   mongo_data:

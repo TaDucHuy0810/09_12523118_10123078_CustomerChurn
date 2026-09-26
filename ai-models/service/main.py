@@ -11,15 +11,23 @@ import joblib
 import pandas as pd
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, ConfigDict
+from src.schema_validation import validate_features
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s ai-service req=%(request_id)s %(message)s")
 logger = logging.getLogger(__name__)
+STARTED_AT = time.monotonic()
+SERVICE_PORT = int(os.getenv("PORT", "8001"))
 
 MODEL_PATH = Path(os.getenv("MODEL_PATH", "ai-models/models/model.joblib"))
 METADATA_PATH = Path(os.getenv("METADATA_PATH", "ai-models/models/metadata.json"))
+SCHEMA_PATH = Path(os.getenv("SCHEMA_PATH", str(MODEL_PATH.parent / "schema.json")))
 model = joblib.load(MODEL_PATH)
 metadata = json.loads(METADATA_PATH.read_text(encoding="utf-8"))
-expected_features = list(getattr(model, "feature_names_in_", []))
+schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+expected_features = [feature["name"] for feature in schema["features"]]
+model_features = list(getattr(model, "feature_names_in_", expected_features))
+if model_features != expected_features:
+    raise RuntimeError("model feature order does not match schema.json")
 
 app = FastAPI(title="Customer Churn AI Service", version=metadata["model_version"])
 
@@ -31,7 +39,13 @@ class PredictionRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "service": "ai-service", "model_loaded": model is not None}
+    return {
+        "status": "healthy",
+        "service": "ai-service",
+        "port": SERVICE_PORT,
+        "uptime_seconds": round(time.monotonic() - STARTED_AT, 2),
+        "model_loaded": model is not None,
+    }
 
 
 @app.get("/model-info")
@@ -43,6 +57,12 @@ def model_info():
 def predict(payload: PredictionRequest, x_request_id: str | None = Header(default=None)):
     request_id = x_request_id or str(uuid4())
     started = time.perf_counter()
+    validation_errors = validate_features(payload.features, schema)
+    if validation_errors:
+        raise HTTPException(
+            status_code=422,
+            detail={"errors": validation_errors, "request_id": request_id},
+        )
     try:
         frame = pd.DataFrame([payload.features]).reindex(columns=expected_features)
         prediction = int(model.predict(frame)[0])
