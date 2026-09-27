@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Customer Churn Prediction</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <aside class="sidebar">
+        <div class="brand-wrap">
+          <div class="brand-mark">CC</div>
+          <div>
+            <p class="eyebrow">Bảng điều khiển AI</p>
+            <h2>ChurnGuard</h2>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <p class="label">Mô hình</p>
+          <h3 id="activeModelName">Logistic Regression</h3>
+          <span class="chip success" id="activeModelScore">F1-score 0.61</span>
+        </div>
+
+        <ul class="stats-list">
+          <li>
+            <span>Accuracy</span>
+            <strong id="activeAccuracy">73.1%</strong>
+          </li>
+          <li>
+            <span>Recall</span>
+            <strong id="activeRecall">78.9%</strong>
+          </li>
+          <li>
+            <span>AUC</span>
+            <strong id="activeAuc">0.84</strong>
+          </li>
+        </ul>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Giữ chân khách hàng</p>
+            <h1>Dự đoán khách hàng rời bỏ dịch vụ</h1>
+          </div>
+          <label class="model-picker">
+            <span>Chọn mô hình</span>
+            <select id="modelSelect" aria-label="Chọn mô hình dự đoán">
+              <option value="logistic_regression">Logistic Regression</option>
+              <option value="knn">KNN</option>
+              <option value="decision_tree">Decision Tree</option>
+              <option value="naive_bayes">Naive Bayes</option>
+            </select>
+          </label>
+        </header>
+
+        <section class="content-grid">
+          <div class="form-card">
+            <div class="section-header">
+              <h3>Thông tin khách hàng</h3>
+              <span>Điền thông tin</span>
+            </div>
+
+            <form id="predictionForm" class="prediction-form">
+              <div class="field-row two-col">
+                <label
+                  ><span>Giới tính</span
+                  ><select id="gender" data-feature="Gender">
+                    <option value="Female">Nữ</option>
+                    <option value="Male">Nam</option>
+                  </select></label
+                >
+                <label
+                  ><span>Người cao tuổi</span
+                  ><select id="seniorCitizen" data-feature="Senior Citizen">
+                    <option value="No">Không</option>
+                    <option value="Yes">Có</option>
+                  </select></label
+                >
+                <label
+                  ><span>Có bạn đời</span
+                  ><select id="partner" data-feature="Partner">
+                    <option value="No">Không</option>
+                    <option value="Yes">Có</option>
+                  </select></label
+                >
+                <label
+                  ><span>Có người phụ thuộc</span
+                  ><select id="dependents" data-feature="Dependents">
+                    <option value="No">Không</option>
+                    <option value="Yes">Có</option>
+                  </select></label
+                >
+                <label
+                  ><span>Thời gian sử dụng (tháng)</span
+                  ><input
+                    type="number"
+                    id="tenure"
+                    data-feature="Tenure Months"
+                    value="12"
+                    min="1"
+                    max="72"
+                    step="1"
+                    required
+                /></label>
+                <label
+                  ><span>Dịch vụ điện thoại</span
+                  ><select id="phoneService" data-feature="Phone Service">
+                    <option value="Yes">Có</option>
+                    <option value="No">Không</option>
+                  </select></label
+                >
+                <label
+                  ><span>Nhiều đường dây</span
+                  ><select id="multipleLines" data-feature="Multiple Lines">
+                    <option value="No">Không</option>
+                    <option value="No phone service">
+                      Không dùng điện thoại
+                    </option>
+                    <option value="Yes">Có</option>
+                  </select></label
+                >
+                <label
+                  ><span>Dịch vụ Internet</span
+                  ><select id="internetService" data-feature="Internet Service">
+                    <option value="Fiber optic">Cáp quang</option>
+                    <option value="DSL">DSL</option>
+                    <option value="No">Không dùng</option>
+                  </select></label
+                >
+                <label
+                  ><span>Bảo mật trực tuyến</span
+                  ><select id="onlineSecurity" data-feature="Online Security">
+                    <option value="No">Không</option>
+                    <option value="Yes">Có</option>
+                    <option value="No internet service">
+                      Không dùng Internet
+                    </option>
+                  </select></label
+                >
+                <label
+                  ><span>Sao lưu trực tuyến</span
+                  ><select id="onlineBackup" data-feature="Online Backup">
+                    <option value="No">Không</option>
+                    <option value="Yes">Có</option>
+                    <option value="No internet service">
+                      Không dùng Internet
+                    </option>
+                  </select></label
+                >
+                <label
+                  ><span>Bảo vệ thiết bị</span
+                  ><select
+                    id="deviceProtection"
+                    data-feature="Device Protection"
+                  >
+                    <option value="No">Không</option>
+                    <option value="Yes">Có</option>
+                    <option value="No internet service">
+                      Không dùng Internet
+                    </option>
+                  </select></label
+                >
+                <label
+                  ><span>Hỗ trợ kỹ thuật</span
+                  ><select id="techSupport" data-feature="Tech Support">
+                    <option value="No">Không</option>
+                    <option value="Yes">Có</option>
+                    <option value="No internet service">
+                      Không dùng Internet
+                    </option>
+                  </select></label
+                >
+                <label
+                  ><span>Truyền hình trực tuyến</span
+                  ><select id="streamingTV" data-feature="Streaming TV">
+                    <option value="No">Không</option>
+                    <option value="Yes">Có</option>
+                    <option value="No internet service">
+                      Không dùng Internet
+                    </option>
+                  </select></label
+                >
+                <label
+                  ><span>Xem phim trực tuyến</span
+                  ><select id="streamingMovies" data-feature="Streaming Movies">
+                    <option value="No">Không</option>
+                    <option value="Yes">Có</option>
+                    <option value="No internet service">
+                      Không dùng Internet
+                    </option>
+                  </select></label
+                >
+                <label
+                  ><span>Hợp đồng</span
+                  ><select id="contract" data-feature="Contract">
+                    <option value="Month-to-month">Theo tháng</option>
+                    <option value="One year">Một năm</option>
+                    <option value="Two year">Hai năm</option>
+                  </select></label
+                >
+                <label
+                  ><span>Thanh toán hóa đơn điện tử</span
+                  ><select
+                    id="paperlessBilling"
+                    data-feature="Paperless Billing"
+                  >
+                    <option value="Yes">Có</option>
+                    <option value="No">Không</option>
+                  </select></label
+                >
+                <label
+                  ><span>Phương thức thanh toán</span
+                  ><select id="paymentMethod" data-feature="Payment Method">
+                    <option value="Electronic check">Thanh toán điện tử</option>
+                    <option value="Mailed check">Gửi séc qua thư</option>
+                    <option value="Bank transfer (automatic)">
+                      Chuyển khoản tự động
+                    </option>
+                    <option value="Credit card (automatic)">
+                      Thẻ tín dụng tự động
+                    </option>
+                  </select></label
+                >
+                <label
+                  ><span>Phí hàng tháng</span
+                  ><input
+                    type="number"
+                    id="monthly"
+                    data-feature="Monthly Charges"
+                    value="74.9"
+                    min="18.25"
+                    max="118.75"
+                    step="0.01"
+                    required
+                /></label>
+                <label
+                  ><span>Tổng chi phí</span
+                  ><input
+                    type="number"
+                    id="total"
+                    data-feature="Total Charges"
+                    value="898.8"
+                    min="18.8"
+                    max="8684.8"
+                    step="0.01"
+                    required
+                /></label>
+                <label
+                  ><span>CLTV</span
+                  ><input
+                    type="number"
+                    id="cltv"
+                    data-feature="CLTV"
+                    value="3239"
+                    min="2003"
+                    max="6500"
+                    step="1"
+                    required
+                /></label>
+              </div>
+
+              <button type="submit" class="primary-button">
+                <span class="button-label">Dự đoán ngay</span>
+              </button>
+            </form>
+          </div>
+
+          <div class="result-card" id="resultCard">
+            <div class="result-header">
+              <p class="eyebrow">Kết quả dự đoán</p>
+              <span class="status-pill neutral" id="statusPill"
+                >Chờ dự đoán</span
+              >
+            </div>
+
+            <div class="score-wrap">
+              <div class="score-ring" id="scoreRing">
+                <span id="riskPercent">0%</span>
+              </div>
+            </div>
+
+            <div class="result-body">
+              <h3 id="resultTitle">Chưa có kết quả</h3>
+              <p id="resultDetail">
+                Nhập thông tin khách hàng để bắt đầu phân tích.
+              </p>
+            </div>
+
+            <div class="risk-meter">
+              <div class="meter-bar">
+                <span id="riskFill"></span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="comparison-card">
+          <div class="section-header">
+            <h3>So sánh 4 mô hình</h3>
+            <span>Kết quả trên tập kiểm tra</span>
+          </div>
+          <div class="comparison-table-wrap">
+            <table class="comparison-table">
+              <thead>
+                <tr>
+                  <th>Mô hình</th>
+                  <th>Accuracy</th>
+                  <th>Precision</th>
+                  <th>Recall</th>
+                  <th>F1-score</th>
+                  <th>ROC-AUC</th>
+                </tr>
+              </thead>
+              <tbody id="comparisonBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

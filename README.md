@@ -125,7 +125,7 @@ matrix từ cùng holdout split.
 ```text
 app/backend/        Backend proxy, request ID, history và logging
 app/frontend/       HTML, CSS, JavaScript, Dockerfile và Nginx proxy
-ai-models/models/   model.joblib, schema.json, metadata.json
+ai-models/models/   4 model artifacts, schema, metadata, checkpoints
 ai-models/data/     dataset.zip, DATA.md
 ai-models/colab/    notebooks 01_eda đến 04_evaluate
 ai-models/src/      preprocess/train/evaluate entry points
@@ -195,10 +195,13 @@ python ai-models/src/evaluate.py
 tuning Logistic Regression và đánh giá Dummy baseline, Logistic Regression,
 KNN, Decision Tree, Naive Bayes. Script chọn model theo CV F1 rồi ghi:
 `ai-models/model_comparison.csv`, `ai-models/models/model.joblib`,
-`ai-models/models/schema.json`, `ai-models/models/metadata.json` và
-`ai-models/<model_name>_model.pkl`. `evaluate.py` tạo biểu đồ metric và bốn
-confusion matrix từ cùng kết quả holdout. Sau khi đổi artifact, rebuild AI
-service bằng `docker compose up --build -d ai-service`.
+`ai-models/models/schema.json`, `ai-models/models/metadata.json`,
+`ai-models/models/checkpoints.json` và artifact riêng cho
+`logistic_regression`, `knn`, `decision_tree`, `naive_bayes`. `evaluate.py`
+tạo biểu đồ metric và bốn confusion matrix từ cùng kết quả holdout.
+`checkpoints.json` lưu 5 checkpoint gồm baseline và 4 model chính với version,
+thời gian train, metric CV F1 và đường dẫn artifact. Sau khi đổi artifact,
+rebuild AI service bằng `docker compose up --build -d ai-service`.
 
 Chạy notebook theo thứ tự `01_eda` → `02_preprocess` → `03_train` →
 `04_evaluate` trong `ai-models/colab/`; các cell gọi lại cùng script canonical.
@@ -235,12 +238,22 @@ AI service, thêm `request_id`, lưu lịch sử và trả về:
 }
 ```
 
-### `GET /health`, `GET /api/history`, `GET /model-info`
+### `POST /api/predict/logistic`, `/api/predict/knn`,
+`/api/predict/decision-tree`, `/api/predict/naive-bayes`
+
+Đây là 4 route riêng tương ứng với 4 model. Route chung `POST /api/predict`
+vẫn được giữ để tương thích frontend cũ và nhận thêm field `model`.
+
+### `GET /health`, `GET /api/history`, `GET /api/models`, `GET /model-info`
 
 Các endpoint dùng để kiểm tra service, xem 50 dự đoán gần nhất và xem metadata
-của model. Backend `/health` trả `healthy` khi cả AI service và MongoDB phản
-hồi; nếu một dependency lỗi, response vẫn chứa trạng thái chi tiết với
+của model. `/api/models` trả 4 model và metric để giao diện hiển thị bảng so
+sánh. Backend `/health` trả `healthy` khi cả AI service và MongoDB phản hồi;
+nếu một dependency lỗi, response vẫn chứa trạng thái chi tiết với
 `status: degraded` để dễ chẩn đoán.
+
+Phân tích lý do chọn metric, ưu nhược điểm và nguyên nhân từng model có kết
+quả cao/thấp nằm trong [docs/model_evaluation.md](docs/model_evaluation.md).
 
 ## 11. Biến môi trường
 
@@ -258,12 +271,12 @@ Chỉ commit [.env.example](.env.example); file `.env` thật không đưa lên 
 
 ## 12. Triển khai và demo
 
-Docker Compose chạy frontend, backend, AI service và MongoDB. URL local đã
-kiểm tra trong phiên hiện tại:
+Docker Compose chạy frontend, backend, AI service và MongoDB. Frontend gọi
+backend qua Nginx; người dùng không gọi trực tiếp AI service. URL local:
 
 | Thành phần | URL                                                          |
 | ---------- | ------------------------------------------------------------ |
-| Frontend   | http://localhost:3001 (cổng 3000 đang bận trên máy kiểm tra) |
+| Frontend   | http://localhost:3000                                 |
 | Backend    | http://localhost:8000/health                                 |
 | AI service | http://localhost:8001/health                                 |
 | AI Swagger | http://localhost:8001/docs                                   |
@@ -283,6 +296,10 @@ test public App và AI đã thành công. Sau mỗi lần đổi tunnel, cập n
 | ----------------- | ------------------------ | ------- | ------------------------------------------------------------ | ------------------------------------------------------ |
 | 2026-09-26 16:57  | `9bd3b6c` + working tree | Chưa có | App: https://antarctica-film-edt-hospitals.trycloudflare.com | Quick tunnel tới port 3001; public prediction đã pass. |
 | 2026-09-26 16:58  | `9bd3b6c` + working tree | Chưa có | AI: https://northwest-sku-til-determine.trycloudflare.com    | Health/model-info/docs/predict đã pass.                |
+
+Template deploy cloud nằm trong [docs/deployment.md](docs/deployment.md),
+[render.yaml](render.yaml) và [vercel.json](vercel.json). Cần thay hostname
+backend và đặt `MONGODB_URI`/`AI_SERVICE_URL` bằng secret trên dashboard.
 
 Không ghi secret, token hoặc connection string chứa mật khẩu vào README.
 
@@ -305,5 +322,7 @@ không phải cam kết production. Chi tiết và lệnh tái lập ở
 
 - [Báo cáo đồ án](docs/baocao.docx)
 - [Giải thích EDA](docs/EDA.md)
+- [Đánh giá và giải thích model](docs/model_evaluation.md)
+- [Triển khai cloud](docs/deployment.md)
 - [Ghi chú dataset](DATA.md)
 - [Performance checklist](docs/performance.md)

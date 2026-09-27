@@ -1,7 +1,7 @@
 {
   "model_name": "logistic_regression",
   "model_version": "1.0.0",
-  "trained_at": "2026-09-26T09:41:26.679417+00:00",
+  "trained_at": "2026-09-27T02:15:28.435699+00:00",
   "target": "Churn Label",
   "split": {
     "test_size": 0.2,
@@ -27,14 +27,85 @@
     "CV Accuracy Std": 0.011507592769907385,
     "CV F1 Mean": 0.6451693392950906,
     "CV F1 Std": 0.015035906521929276,
-    "Train Seconds": 0.11764529999345541,
-    "Predict Seconds": 0.013120799994794652
+    "Train Seconds": 0.07088250000379048,
+    "Predict Seconds": 0.011728099983884022
   },
+  "models": [
+    {
+      "name": "logistic_regression",
+      "metrics": {
+        "Model": "logistic_regression",
+        "Accuracy": 0.7306325515280739,
+        "Precision": 0.4957983193277311,
+        "Recall": 0.7887700534759359,
+        "F1-score": 0.608875128998968,
+        "ROC-AUC": 0.8428154329583633,
+        "CV Accuracy Mean": 0.7617777777777778,
+        "CV Accuracy Std": 0.011507592769907385,
+        "CV F1 Mean": 0.6451693392950906,
+        "CV F1 Std": 0.015035906521929276,
+        "Train Seconds": 0.07088250000379048,
+        "Predict Seconds": 0.011728099983884022
+      }
+    },
+    {
+      "name": "knn",
+      "metrics": {
+        "Model": "knn",
+        "Accuracy": 0.757640369580668,
+        "Precision": 0.5433070866141733,
+        "Recall": 0.553475935828877,
+        "F1-score": 0.5483443708609271,
+        "ROC-AUC": 0.7846040554741653,
+        "CV Accuracy Mean": 0.7690666666666666,
+        "CV Accuracy Std": 0.012023351764558854,
+        "CV F1 Mean": 0.5683149272777378,
+        "CV F1 Std": 0.026307268680847585,
+        "Train Seconds": 0.03725960000883788,
+        "Predict Seconds": 0.07731829999829642
+      }
+    },
+    {
+      "name": "decision_tree",
+      "metrics": {
+        "Model": "decision_tree",
+        "Accuracy": 0.7142857142857143,
+        "Precision": 0.4779874213836478,
+        "Recall": 0.8128342245989305,
+        "F1-score": 0.601980198019802,
+        "ROC-AUC": 0.8302164921235589,
+        "CV Accuracy Mean": 0.7354666666666667,
+        "CV Accuracy Std": 0.015827215192216876,
+        "CV F1 Mean": 0.6266242102778776,
+        "CV F1 Std": 0.016100513990472964,
+        "Train Seconds": 0.05861690000165254,
+        "Predict Seconds": 0.017848499992396683
+      }
+    },
+    {
+      "name": "naive_bayes",
+      "metrics": {
+        "Model": "naive_bayes",
+        "Accuracy": 0.7043354655294953,
+        "Precision": 0.4670846394984326,
+        "Recall": 0.7967914438502673,
+        "F1-score": 0.5889328063241107,
+        "ROC-AUC": 0.8112760196923968,
+        "CV Accuracy Mean": 0.7319111111111111,
+        "CV Accuracy Std": 0.011719857581404087,
+        "CV F1 Mean": 0.6214179267966353,
+        "CV F1 Std": 0.012083894948962958,
+        "Train Seconds": 0.036750500003108755,
+        "Predict Seconds": 0.008813799999188632
+      }
+    }
+  ],
   "library_versions": {
     "python": "3.14.7",
     "scikit_learn": "1.9.1",
     "numpy": "2.5.3",
     "pandas": "3.0.6"
   },
-  "artifact": "ai-models/models/model.joblib"
+  "artifact": "ai-models/models/model.joblib",
+  "checkpoints_artifact": "ai-models/models/checkpoints.json"
 }

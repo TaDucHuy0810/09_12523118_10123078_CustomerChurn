@@ -39,6 +39,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 class PredictionRequest(BaseModel):
     model_config = ConfigDict(extra="allow")
     features: dict[str, object]
+    model: str | None = None
 
 
 @app.get("/health")
@@ -76,8 +77,7 @@ def health():
     }
 
 
-@app.post("/api/predict")
-async def predict(payload: PredictionRequest, x_request_id: str | None = Header(default=None)):
+async def _predict(payload: PredictionRequest, route_model: str | None, x_request_id: str | None):
     request_id = x_request_id or str(uuid4())
     validation_errors = validate_features(payload.features, SCHEMA)
     if validation_errors:
@@ -90,7 +90,7 @@ async def predict(payload: PredictionRequest, x_request_id: str | None = Header(
         async with httpx.AsyncClient(timeout=10) as http_client:
             response = await http_client.post(
                 f"{AI_SERVICE_URL}/predict",
-                json={"features": payload.features},
+                json={"features": payload.features, "model": route_model or payload.model},
                 headers={"X-Request-ID": request_id},
             )
         response.raise_for_status()
@@ -109,6 +109,42 @@ async def predict(payload: PredictionRequest, x_request_id: str | None = Header(
             logger.warning("history_persist_failed error=%s", error, extra={"request_id": request_id})
     logger.info("200 OK saved_history", extra={"request_id": request_id})
     return result
+
+
+@app.post("/api/predict")
+async def predict(payload: PredictionRequest, x_request_id: str | None = Header(default=None)):
+    return await _predict(payload, None, x_request_id)
+
+
+@app.post("/api/predict/logistic")
+async def predict_logistic(payload: PredictionRequest, x_request_id: str | None = Header(default=None)):
+    return await _predict(payload, "logistic_regression", x_request_id)
+
+
+@app.post("/api/predict/knn")
+async def predict_knn(payload: PredictionRequest, x_request_id: str | None = Header(default=None)):
+    return await _predict(payload, "knn", x_request_id)
+
+
+@app.post("/api/predict/decision-tree")
+async def predict_decision_tree(payload: PredictionRequest, x_request_id: str | None = Header(default=None)):
+    return await _predict(payload, "decision_tree", x_request_id)
+
+
+@app.post("/api/predict/naive-bayes")
+async def predict_naive_bayes(payload: PredictionRequest, x_request_id: str | None = Header(default=None)):
+    return await _predict(payload, "naive_bayes", x_request_id)
+
+
+@app.get("/api/models")
+async def get_models():
+    try:
+        async with httpx.AsyncClient(timeout=5) as http_client:
+            response = await http_client.get(f"{AI_SERVICE_URL}/model-info")
+        response.raise_for_status()
+        return response.json()
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=503, detail="AI service unavailable") from error
 
 
 @app.get("/api/history")

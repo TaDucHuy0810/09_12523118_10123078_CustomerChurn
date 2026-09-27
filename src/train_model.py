@@ -174,22 +174,48 @@ def main() -> None:
         ["CV F1 Mean", "CV Accuracy Mean"], ascending=False,
     ).iloc[0]["Model"]
     best_pipeline = fitted_models[best_name]
+    for name, pipeline in fitted_models.items():
+        joblib.dump(pipeline, ARTIFACT_DIR / f"{name}.joblib", compress=3)
     joblib.dump(best_pipeline, ARTIFACT_DIR / "model.joblib", compress=3)
     joblib.dump(best_pipeline, LEGACY_DIR / f"{best_name}_model.pkl", compress=3)
 
+    trained_at = datetime.now(UTC).isoformat()
+    checkpoints = [
+        {
+            "checkpoint_id": f"{result['Model']}-holdout-v1",
+            "model": result["Model"],
+            "version": "1.0.0",
+            "trained_at": trained_at,
+            "metric": "F1-score",
+            "f1_score": result["F1-score"],
+            "cv_f1_mean": result["CV F1 Mean"],
+            "artifact": f"ai-models/models/{result['Model']}.joblib",
+        }
+        for result in results
+    ]
+    (ARTIFACT_DIR / "checkpoints.json").write_text(json.dumps(checkpoints, indent=2, default=float), encoding="utf-8")
     (ARTIFACT_DIR / "schema.json").write_text(json.dumps(build_schema(X, y), indent=2), encoding="utf-8")
     best_result = next(item for item in results if item["Model"] == best_name)
     metadata = {
         "model_name": best_name,
         "model_version": "1.0.0",
-        "trained_at": datetime.now(UTC).isoformat(),
+        "trained_at": trained_at,
         "target": "Churn Label",
         "split": {"test_size": 0.2, "random_state": RANDOM_STATE, "stratified": True},
         "cross_validation": {"folds": 5, "strategy": "StratifiedKFold", "scoring": "f1"},
         "best_params": tuned_logistic.best_params_,
         "metrics": {key: value for key, value in best_result.items() if key != "Confusion Matrix"},
+        "models": [
+            {
+                "name": result["Model"],
+                "metrics": {key: value for key, value in result.items() if key != "Confusion Matrix"},
+            }
+            for result in results
+            if result["Model"] != "dummy_baseline"
+        ],
         "library_versions": {"python": sys.version.split()[0], "scikit_learn": sklearn.__version__, "numpy": np.__version__, "pandas": pd.__version__},
         "artifact": "ai-models/models/model.joblib",
+        "checkpoints_artifact": "ai-models/models/checkpoints.json",
     }
     (ARTIFACT_DIR / "metadata.json").write_text(json.dumps(metadata, indent=2, default=float), encoding="utf-8")
     print(f"Best model: {best_name}")
