@@ -222,7 +222,105 @@ và request ID của backend. Chạy `python -m pytest tests -q`.
 
 ## 10. API chính
 
-### `POST /api/predict`
+Khi kiểm tra toàn bộ luồng, gọi **backend** ở cổng `8000`; backend kiểm tra
+schema, chuyển request sang AI service rồi lưu lịch sử. Không gọi cổng `8001`
+nếu mục tiêu là kiểm thử cả backend và MongoDB.
+
+| Service | Method và endpoint | Mục đích |
+| ------- | ------------------ | -------- |
+| Backend (`8000`) | `GET /health` | Kiểm tra backend, AI service và MongoDB |
+| Backend (`8000`) | `POST /api/predict` | Dự đoán bằng model mặc định; có thể truyền thêm `model` |
+| Backend (`8000`) | `POST /api/predict/logistic`, `/api/predict/knn`, `/api/predict/decision-tree`, `/api/predict/naive-bayes` | Chọn model cụ thể |
+| Backend (`8000`) | `GET /api/models` | Xem danh sách model và metric |
+| Backend (`8000`) | `GET /api/history` | Xem tối đa 50 dự đoán gần nhất |
+| AI service (`8001`) | `GET /health`, `GET /model-info`, `POST /predict` và các route model tương ứng | Kiểm tra hoặc gọi trực tiếp AI service |
+| AI service (`8001`) | `GET /docs` | Swagger UI của AI service |
+
+### Smoke test backend bằng PowerShell
+
+Khởi động stack theo mục 8, sau đó chạy từ PowerShell tại thư mục gốc. Chờ
+`docker compose ps` cho thấy các service cần thiết đang chạy và
+`http://localhost:8000/health` trả về `status: healthy`.
+
+```powershell
+$baseUrl = "http://localhost:8000"
+$health = Invoke-RestMethod -Uri "$baseUrl/health"
+$health | ConvertTo-Json -Depth 5
+if ($health.status -ne "healthy") { throw "Backend is not healthy" }
+
+$payload = @{
+  features = @{
+    "Gender" = "Male"
+    "Senior Citizen" = "No"
+    "Partner" = "Yes"
+    "Dependents" = "No"
+    "Tenure Months" = 12
+    "Phone Service" = "Yes"
+    "Multiple Lines" = "No"
+    "Internet Service" = "Fiber optic"
+    "Online Security" = "No"
+    "Online Backup" = "Yes"
+    "Device Protection" = "No"
+    "Tech Support" = "No"
+    "Streaming TV" = "Yes"
+    "Streaming Movies" = "No"
+    "Contract" = "Month-to-month"
+    "Paperless Billing" = "Yes"
+    "Payment Method" = "Electronic check"
+    "Monthly Charges" = 75.5
+    "Total Charges" = 906
+    "CLTV" = 4000
+  }
+}
+$requestId = "smoke-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+$result = Invoke-RestMethod -Method Post `
+  -Uri "$baseUrl/api/predict" `
+  -Headers @{ "X-Request-ID" = $requestId } `
+  -ContentType "application/json" `
+  -Body ($payload | ConvertTo-Json -Depth 5)
+$result | ConvertTo-Json -Depth 5
+```
+
+Request hợp lệ trả HTTP `200`; response có `prediction`, `label`,
+`probability`, `model_name`, `model_version`, `request_id` và `latency_ms`.
+`request_id` trong response phải trùng với giá trị vừa gửi. Kiểm tra request
+đã được lưu bằng:
+
+```powershell
+Invoke-RestMethod -Uri "$baseUrl/api/history" | ConvertTo-Json -Depth 8
+```
+
+Có thể thay route bằng `/api/predict/knn`, `/api/predict/logistic`,
+`/api/predict/decision-tree` hoặc `/api/predict/naive-bayes` để kiểm tra từng
+model. Thiếu feature hoặc giá trị ngoài schema sẽ bị từ chối với HTTP `422`.
+Schema đầy đủ nằm tại [ai-models/models/schema.json](ai-models/models/schema.json).
+
+Để xem Swagger của backend mở `http://localhost:8000/docs`; Swagger AI service
+là `http://localhost:8001/docs`.
+
+### Load test và theo dõi log
+
+Script tạo payload theo schema và mặc định chạy 10 client trong 60 giây. Chạy
+sau khi stack healthy, từ thư mục gốc; `--base-url` phải là địa chỉ backend có
+các route `/health` và `/api/predict`:
+
+```powershell
+python scripts/load_test.py --base-url http://localhost:8000 --users 10 --duration 60
+```
+
+Đổi `--base-url` sang địa chỉ backend đang kiểm thử. Phối hợp với người quản
+lý server trước khi tăng số client/thời lượng hoặc chạy tải lên server dùng
+chung. Kết quả load test trước đây và giới hạn phép đo nằm trong
+[docs/performance.md](docs/performance.md).
+
+Theo dõi backend và AI service ở terminal khác; đối chiếu log hai service bằng
+`request_id`:
+
+```powershell
+docker compose logs -f backend ai-service
+```
+
+### Response mẫu
 
 Frontend gửi object `features` đến backend. Backend chuyển tiếp request đến
 AI service, thêm `request_id`, lưu lịch sử và trả về:
@@ -233,24 +331,15 @@ AI service, thêm `request_id`, lưu lịch sử và trả về:
   "label": "Churn",
   "probability": 0.73,
   "model_version": "1.0.0",
+  "model_name": "logistic_regression",
   "request_id": "uuid",
   "latency_ms": 12.4
 }
 ```
 
-### `POST /api/predict/logistic`, `/api/predict/knn`,
-`/api/predict/decision-tree`, `/api/predict/naive-bayes`
-
-Đây là 4 route riêng tương ứng với 4 model. Route chung `POST /api/predict`
-vẫn được giữ để tương thích frontend cũ và nhận thêm field `model`.
-
-### `GET /health`, `GET /api/history`, `GET /api/models`, `GET /model-info`
-
-Các endpoint dùng để kiểm tra service, xem 50 dự đoán gần nhất và xem metadata
-của model. `/api/models` trả 4 model và metric để giao diện hiển thị bảng so
-sánh. Backend `/health` trả `healthy` khi cả AI service và MongoDB phản hồi;
-nếu một dependency lỗi, response vẫn chứa trạng thái chi tiết với
-`status: degraded` để dễ chẩn đoán.
+Backend `/health` trả `healthy` khi cả AI service và MongoDB phản hồi; nếu một
+dependency lỗi, response vẫn chứa trạng thái chi tiết với `status: degraded`
+để dễ chẩn đoán.
 
 Phân tích lý do chọn metric, ưu nhược điểm và nguyên nhân từng model có kết
 quả cao/thấp nằm trong [docs/model_evaluation.md](docs/model_evaluation.md).
@@ -274,12 +363,12 @@ Chỉ commit [.env.example](.env.example); file `.env` thật không đưa lên 
 Docker Compose chạy frontend, backend, AI service và MongoDB. Frontend gọi
 backend qua Nginx; người dùng không gọi trực tiếp AI service. URL local:
 
-| Thành phần | URL                                                          |
-| ---------- | ------------------------------------------------------------ |
-| Frontend   | http://localhost:3000                                 |
-| Backend    | http://localhost:8000/health                                 |
-| AI service | http://localhost:8001/health                                 |
-| AI Swagger | http://localhost:8001/docs                                   |
+| Thành phần | URL                          |
+| ---------- | ---------------------------- |
+| Frontend   | http://localhost:3000        |
+| Backend    | http://localhost:8000/health |
+| AI service | http://localhost:8001/health |
+| AI Swagger | http://localhost:8001/docs   |
 
 **Public demo đang chạy bằng hai quick tunnel tạm thời:**
 
