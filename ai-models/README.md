@@ -17,9 +17,11 @@ Từ thư mục gốc:
 
 ```powershell
 Set-Location ai-models
-uvicorn service.main:app --host 0.0.0.0 --port 8001
+uvicorn service.main:app --host 127.0.0.1 --port 8001
 Set-Location ..
 ```
+
+Standalone mode chỉ bind vào loopback để không expose AI service ra mạng.
 
 Trong Docker, service được khởi động bằng
 [Dockerfile](Dockerfile) và đọc `MODEL_PATH`, `METADATA_PATH`.

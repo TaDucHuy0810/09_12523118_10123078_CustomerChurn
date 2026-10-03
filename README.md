@@ -167,9 +167,10 @@ Remove-Item Env:FRONTEND_PORT
 | --------------- | ----------------------------------------------------------------- |
 | Giao diện       | http://localhost:3000                                             |
 | Backend health  | http://localhost:8000/health (status, port, uptime, dependencies) |
-| AI health       | http://localhost:8001/health (status, port, uptime, model_loaded) |
-| AI Swagger      | http://localhost:8001/docs                                        |
 | Lịch sử dự đoán | http://localhost:8000/api/history                                 |
+
+AI service chỉ truy cập nội bộ qua Docker network tại `ai-service:8001`;
+cổng này không publish ra máy host. Backend là đường gọi API từ bên ngoài.
 
 Kiểm tra container:
 
@@ -226,15 +227,14 @@ Khi kiểm tra toàn bộ luồng, gọi **backend** ở cổng `8000`; backend 
 schema, chuyển request sang AI service rồi lưu lịch sử. Không gọi cổng `8001`
 nếu mục tiêu là kiểm thử cả backend và MongoDB.
 
-| Service | Method và endpoint | Mục đích |
-| ------- | ------------------ | -------- |
-| Backend (`8000`) | `GET /health` | Kiểm tra backend, AI service và MongoDB |
-| Backend (`8000`) | `POST /api/predict` | Dự đoán bằng model mặc định; có thể truyền thêm `model` |
-| Backend (`8000`) | `POST /api/predict/logistic`, `/api/predict/knn`, `/api/predict/decision-tree`, `/api/predict/naive-bayes` | Chọn model cụ thể |
-| Backend (`8000`) | `GET /api/models` | Xem danh sách model và metric |
-| Backend (`8000`) | `GET /api/history` | Xem tối đa 50 dự đoán gần nhất |
-| AI service (`8001`) | `GET /health`, `GET /model-info`, `POST /predict` và các route model tương ứng | Kiểm tra hoặc gọi trực tiếp AI service |
-| AI service (`8001`) | `GET /docs` | Swagger UI của AI service |
+| Service             | Method và endpoint                                                                                         | Mục đích                                                |
+| ------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| Backend (`8000`)    | `GET /health`                                                                                              | Kiểm tra backend, AI service và MongoDB                 |
+| Backend (`8000`)    | `POST /api/predict`                                                                                        | Dự đoán bằng model mặc định; có thể truyền thêm `model` |
+| Backend (`8000`)    | `POST /api/predict/logistic`, `/api/predict/knn`, `/api/predict/decision-tree`, `/api/predict/naive-bayes` | Chọn model cụ thể                                       |
+| Backend (`8000`)    | `GET /api/models`                                                                                          | Xem danh sách model và metric                           |
+| Backend (`8000`)    | `GET /api/history`                                                                                         | Xem tối đa 50 dự đoán gần nhất                          |
+| AI service (nội bộ) | `/health`, `/model-info`, `/predict` và các route model tương ứng                                          | Chỉ backend truy cập trong Docker network               |
 
 ### Smoke test backend bằng PowerShell
 
@@ -295,8 +295,8 @@ Có thể thay route bằng `/api/predict/knn`, `/api/predict/logistic`,
 model. Thiếu feature hoặc giá trị ngoài schema sẽ bị từ chối với HTTP `422`.
 Schema đầy đủ nằm tại [ai-models/models/schema.json](ai-models/models/schema.json).
 
-Để xem Swagger của backend mở `http://localhost:8000/docs`; Swagger AI service
-là `http://localhost:8001/docs`.
+Để xem Swagger của backend mở `http://localhost:8000/docs`. AI service không
+publish Swagger ra host; chỉ backend gọi service này trong Docker network.
 
 ### Load test và theo dõi log
 
@@ -346,45 +346,36 @@ quả cao/thấp nằm trong [docs/model_evaluation.md](docs/model_evaluation.md
 
 ## 11. Biến môi trường
 
-| Biến               | Mặc định                           | Ý nghĩa                    |
-| ------------------ | ---------------------------------- | -------------------------- |
-| `FRONTEND_PORT`    | `3000`                             | Port public của frontend   |
-| `BACKEND_PORT`     | `8000`                             | Port public của backend    |
-| `AI_SERVICE_PORT`  | `8001`                             | Port public của AI service |
-| `AI_SERVICE_URL`   | `http://ai-service:8001`           | Backend gọi AI             |
-| `SCHEMA_PATH`      | `/app/model_artifacts/schema.json` | Schema input cho backend   |
-| `MONGODB_URI`      | `mongodb://mongo:27017`            | Kết nối MongoDB            |
-| `MONGODB_DATABASE` | `customer_churn`                   | Tên database lịch sử       |
+| Biến               | Mặc định                           | Ý nghĩa                  |
+| ------------------ | ---------------------------------- | ------------------------ |
+| `FRONTEND_PORT`    | `3000`                             | Port public của frontend |
+| `BACKEND_PORT`     | `8000`                             | Port public của backend  |
+| `AI_SERVICE_URL`   | `http://ai-service:8001`           | Backend gọi AI           |
+| `SCHEMA_PATH`      | `/app/model_artifacts/schema.json` | Schema input cho backend |
+| `MONGODB_URI`      | `mongodb://mongo:27017`            | Kết nối MongoDB          |
+| `MONGODB_DATABASE` | `customer_churn`                   | Tên database lịch sử     |
 
 Chỉ commit [.env.example](.env.example); file `.env` thật không đưa lên Git.
 
 ## 12. Triển khai và demo
 
 Docker Compose chạy frontend, backend, AI service và MongoDB. Frontend gọi
-backend qua Nginx; người dùng không gọi trực tiếp AI service. URL local:
+backend qua Nginx; AI service không publish port ra host. URL local:
 
 | Thành phần | URL                          |
 | ---------- | ---------------------------- |
 | Frontend   | http://localhost:3000        |
 | Backend    | http://localhost:8000/health |
-| AI service | http://localhost:8001/health |
-| AI Swagger | http://localhost:8001/docs   |
 
-**Public demo đang chạy bằng hai quick tunnel tạm thời:**
+Public demo chỉ mở tunnel tới frontend; không tạo tunnel tới backend hoặc AI service:
 
 ```powershell
-cloudflared tunnel --url http://localhost:3001
-cloudflared tunnel --url http://localhost:8001
+ngrok http 3000
 ```
 
-Giữ cả hai terminal tunnel và Docker Compose mở khi demo. Quick tunnel URLs
-không cố định, không có uptime guarantee và đổi sau khi khởi động lại. Smoke
-test public App và AI đã thành công. Sau mỗi lần đổi tunnel, cập nhật bảng:
-
-| Thời điểm (GMT+7) | Commit                   | URL cũ  | URL mới                                                      | Ghi chú                                                |
-| ----------------- | ------------------------ | ------- | ------------------------------------------------------------ | ------------------------------------------------------ |
-| 2026-09-26 16:57  | `9bd3b6c` + working tree | Chưa có | App: https://antarctica-film-edt-hospitals.trycloudflare.com | Quick tunnel tới port 3001; public prediction đã pass. |
-| 2026-09-26 16:58  | `9bd3b6c` + working tree | Chưa có | AI: https://northwest-sku-til-determine.trycloudflare.com    | Health/model-info/docs/predict đã pass.                |
+Giữ Docker Compose và tiến trình NGROK mở trong lúc demo. Dùng URL public do
+NGROK cấp để mở giao diện và thử dự đoán; URL tạm thời có thể đổi sau khi
+khởi động lại tunnel. Không tạo tunnel tới cổng AI `8001`.
 
 Template deploy cloud nằm trong [docs/deployment.md](docs/deployment.md),
 [render.yaml](render.yaml) và [vercel.json](vercel.json). Cần thay hostname

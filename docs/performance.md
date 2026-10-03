@@ -40,20 +40,14 @@ Verified after rebuild:
 - Health responses include status, port and uptime; AI reports `model_loaded: true`.
 - Tests: `python -m pytest tests -q` (10 passed).
 
-## Public quick tunnels
+## Public demo tunnel
 
-Verified on 2026-09-26. These are temporary, account-less Cloudflare quick tunnels; they have no uptime guarantee and stop working when their `cloudflared` processes exit.
-
-| Time (GMT+7) | Component  | Public URL                                              | Verification                                            |
-| ------------ | ---------- | ------------------------------------------------------- | ------------------------------------------------------- |
-| 16:57        | App        | https://antarctica-film-edt-hospitals.trycloudflare.com | Frontend HTTP 200; full prediction succeeded            |
-| 16:58        | AI service | https://northwest-sku-til-determine.trycloudflare.com   | `/health`, `/model-info`, `/docs`, `/predict` succeeded |
-
-Start tunnels from separate terminals while Docker Compose stays running:
+Open only the frontend during a public demo. The AI service must remain private
+inside Docker; do not create a tunnel to port `8001`.
 
 ```powershell
-cloudflared tunnel --url http://localhost:3001
-cloudflared tunnel --url http://localhost:8001
+ngrok http 3000
 ```
 
-When either process restarts, get its new URL, smoke-test it, and update `README.md` and this log. Do not leave an expired quick-tunnel URL as the active demo address.
+Keep Docker Compose and NGROK running, then smoke-test a prediction through the
+NGROK URL. The temporary URL may change when the tunnel restarts.
